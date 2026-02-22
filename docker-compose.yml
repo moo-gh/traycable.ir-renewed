@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   traycable:
     image: thiagobarradas/wordpress:4.9.4-php7.2
