@@ -2,8 +2,6 @@
 /**
  * Abstract Shortcode
  *
- * PHP Version 5.5
- * 
  * @category Shortcode
  * @author   Benjamin J DeLong <ben@bozdoz.com>
  */
@@ -16,6 +14,9 @@
  */
 abstract class Leaflet_Shortcode
 {
+    /**
+     * @var Leaflet_Map
+     */
     protected $LM;
 
     /**
@@ -39,10 +40,10 @@ abstract class Leaflet_Shortcode
     /**
      * Instantiate class and get HTML for shortcode
      *
-     * @param array  $atts    string|array
-     * @param string $content Optional
+     * @param array|string|null $atts    string|array
+     * @param string|null       $content Optional
      * 
-     * @return string (see above)
+     * @return string HTML
      */
     public static function shortcode($atts = '', $content = null)
     {
@@ -81,6 +82,23 @@ abstract class Leaflet_Shortcode
         }
 
         return $instance->getHTML($atts, $content);
+    }
+
+    /**
+     * Wrap Javascript output with common function and tags
+     *
+     * @param string $script JavaScript
+     * @param string $name string name of function
+     * 
+     * @return string JavaScript
+     */
+    protected function wrap_script($script, $name="")
+    {
+        ob_start();
+        ?><script>
+window.WPLeafletMapPlugin = window.WPLeafletMapPlugin || [];
+window.WPLeafletMapPlugin.push(function <?php echo $name; ?>() {<?php echo $script; ?>});</script><?php
+        return ob_get_clean();
     }
 
     /**

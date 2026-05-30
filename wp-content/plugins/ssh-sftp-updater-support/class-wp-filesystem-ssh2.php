@@ -6,10 +6,10 @@
  * @subpackage Filesystem
  */
 
-set_include_path(get_include_path() . PATH_SEPARATOR . dirname(__FILE__) . '/phpseclib/');
+use phpseclib3\Net\SFTP as Net_SFTP;
+use phpseclib3\Crypt\PublicKeyLoader as Crypt_PublicKeyLoader;
 
-if (!class_exists('Net_SFTP')) require_once('Net/SFTP.php');
-if (!class_exists('Crypt_RSA')) require_once('Crypt/RSA.php');
+require_once SSH_SFTP_UPDATER_SUPPORT_MAIN_PATH.'/vendor/autoload.php';
 
 /**
  * WordPress Filesystem Class for implementing SSH2.
@@ -28,24 +28,28 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 	public $password = false;
 	public $errors = array();
 	public $options = array();
+	
+	private $assymetric_key;
 
+	/**
+	 * Class constructor
+	 */
 	public function __construct($opt='') {
 		$this->method = 'ssh2';
 		$this->errors = new WP_Error();
 
 		if ( !function_exists('stream_get_contents') ) {
-			$this->errors->add('ssh2_php_requirement', __('We require the PHP5 function <code>stream_get_contents()</code>'));
+			//translators: PHP function name
+			$this->errors->add('ssh2_php_requirement', sprintf(__('The PHP function %s is required, but not present in this PHP install; you should contact your webserver administrator.', 'ssh-sftp-updater-support'), '<code>stream_get_contents()</code>'));
 			return false;
 		}
 
 		// Set defaults:
-		if ( empty($opt['port']) )
-			$this->options['port'] = 22;
-		else
-			$this->options['port'] = $opt['port'];
-
+		
+		$this->options['port'] = empty($opt['port']) ? 22 : $opt['port'];
+			
 		if ( empty($opt['hostname']) )
-			$this->errors->add('empty_hostname', __('SSH2 hostname is required'));
+			$this->errors->add('empty_hostname', __('SSH2 hostname is required')); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- String is part of WordPress core
 		else
 			$this->options['hostname'] = $opt['hostname'];
 
@@ -57,7 +61,7 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 
 			$this->keys = true;
 		} elseif ( empty ($opt['username']) ) {
-			$this->errors->add('empty_username', __('SSH2 username is required'));
+			$this->errors->add('empty_username', __('SSH2 username is required')); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- String is part of WordPress core
 		}
 
 		if ( !empty($opt['username']) )
@@ -65,18 +69,27 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 
 		if ( empty ($opt['password']) ) {
 			if ( !$this->keys )	//password can be blank if we are using keys
-				$this->errors->add('empty_password', __('SSH2 password is required'));
+				$this->errors->add('empty_password', __('SSH2 password is required')); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- String is part of WordPress core
 		} else {
 			$this->options['password'] = $opt['password'];
-
 			$this->password = true;
 		}
 	}
 
+	/**
+	  * Initiate SFTP connection, and set self::$link
+	  * 
+	  * @uses self::$link
+	  * @uses self::$options
+	  * @uses self::$errors
+	  * @uses self::$password
+	  *
+	  * @return Boolean
+	  */
 	public function connect() {
-	
+
 		if (empty($this->options['hostname']) || empty($this->options['username'])) {
-			$this->errors->add('auth', sprintf(__('No connection credentials available'), $this->options));
+			$this->errors->add('auth', sprintf(__('No connection credentials available', 'ssh-sftp-updater-support'), $this->options));
 			return false;
 		}
 	
@@ -86,20 +99,36 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 			if ( ! $this->link->login($this->options['username'], $this->options['password']) ) {
 				if ( $this->handle_connect_error() )
 					return false;
-				$this->errors->add('auth', sprintf(__('Username/Password incorrect for %s'), $this->options['username']));
+				// translators: username
+				$this->errors->add('auth', sprintf(__('Username/Password incorrect for %s'), $this->options['username'])); // phpcs:ignore WordPress.WP.I18n.MissingArgDomain -- String is part of WordPress core
 				return false;
 			}
 		} else {
-			$rsa = new Crypt_RSA();
-			if ( $this->password ) {
-				$rsa->setPassword($this->options['password']);
-			}
-			$rsa->loadKey($this->options['private_key']);
-			if ( ! $this->link->login($this->options['username'], $rsa ) ) {
-				if ( $this->handle_connect_error() )
+			// phpseclib2 code
+			// $rsa = new Crypt_RSA();
+			// if ( $this->password ) $rsa->setPassword($this->options['password']);
+			// $rsa->loadKey($this->options['private_key']);
+			
+			// phpseclib3 made large changes from phpseclib2 in key handling. Example code without any encryption on the key: https://github.com/phpseclib/phpseclib/issues/1604
+			
+			$password = false;
+			if ( $this->password ) $password = $this->options['password'];
+			
+			if (empty($this->assymetric_key)) {
+				// This can be slow, so we want to do it as few times as possible
+				try {
+					$this->assymetric_key = Crypt_PublicKeyLoader::load($this->options['private_key'], $password);
+				} catch (Exception $e) {
+					$this->errors->add('auth', sprintf(__('Private key invalid or incorrect for %s', 'ssh-sftp-updater-support'), $this->options['username']).': '.$e->getMessage());
 					return false;
-				$this->errors->add('auth', sprintf(__('Private key incorrect for %s'), $this->options['username']));
-				$this->errors->add('auth', __('Make sure that the key you are using is an RSA key and not a DSA key'));
+				}
+			}
+
+			if ( ! $this->link->login($this->options['username'], $this->assymetric_key ) ) {
+				if ( $this->handle_connect_error() ) return false;
+				// translators: username
+				$this->errors->add('auth', sprintf(__('Private key incorrect for %s', 'ssh-sftp-updater-support'), $this->options['username']));
+				$this->errors->add('auth', __('The key needs to be the private key, and one supported by phpseclib3 (EC, RSA, DSA, X509) and already known to work with your SFTP server.', 'ssh-sftp-updater-support'));
 				return false;
 			}
 		}
@@ -109,15 +138,24 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 
 	public function handle_connect_error() {
 		if ( ! $this->link->isConnected() ) {
-			$this->errors->add('connect', sprintf(__('Failed to connect to SSH2 Server %1$s:%2$s'), $this->options['hostname'], $this->options['port']));
-			$this->errors->add('connect2', __('If SELinux is installed check to make sure that <code>httpd_can_network_connect</code> is set to 1'));
+			// translators: hostname, port number
+			$this->errors->add('connect', sprintf(__('Failed to connect to SSH2 Server %1$s:%2$s', 'ssh-sftp-updater-support'), $this->options['hostname'], $this->options['port']));
+			$this->errors->add('connect2', __('If SELinux is installed on your webserver then check to make sure that <code>httpd_can_network_connect</code> is set to 1', 'ssh-sftp-updater-support'));
 			return true;
 		}
 
 		return false;
 	}
 
-	public function run_command( $command, $returnbool = false) {
+	/**
+	 * Execute a command over the SFTP link
+	 *
+	 * @param String  $command
+	 * @param Boolean $returnbool
+	 *
+	 * @return Mixed
+	 */
+	public function run_command($command, $returnbool = false) {
 
 		if ( ! $this->link )
 			return false;
@@ -130,13 +168,22 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 			return $data;
 	}
 
+	/**
+	 * Return the contents of a file as a string
+	 *
+	 * @param String  $file
+	 * @param String  $type
+	 * @param Integer $resumepos
+	 *
+	 * @return String
+	 */
 	public function get_contents($file, $type = '', $resumepos = 0 ) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		return $this->link->get($file);
 	}
 
 	public function get_contents_array($file) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$lines = preg_split('#(\r\n|\r|\n)#', $this->link->get($file), -1, PREG_SPLIT_DELIM_CAPTURE);
 		$newLines = array();
 		for ($i = 0; $i < count($lines); $i+= 2)
@@ -145,7 +192,7 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 	}
 
 	public function put_contents($file, $contents, $mode = false ) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$ret = $this->link->put($file, $contents);
 
 		$this->chmod($file, $mode);
@@ -153,16 +200,19 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 		return false !== $ret;
 	}
 
+	/**
+	 * Returns the current directory (with a trailing slash) or false upon failure
+	 *
+	 * @return String|Boolean
+	 */
 	public function cwd() {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$cwd = $this->run_command('pwd');
-		if ( $cwd )
-			$cwd = trailingslashit($cwd);
-		return $cwd;
+		return $cwd ? trailingslashit($cwd) : $cwd;
 	}
 
 	public function chdir($dir) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$this->list->chdir($dir);
 		return $this->run_command('cd ' . $dir, true);
 	}
@@ -176,12 +226,12 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 	}
 
 	public function chmod($file, $mode = false, $recursive = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		return $mode === false ? false : $this->link->chmod($mode, $file, $recursive);
 	}
 
 	public function chown($file, $owner, $recursive = false ) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		if ( ! $this->exists($file) )
 			return false;
 		if ( ! $recursive || ! $this->is_dir($file) )
@@ -190,7 +240,7 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 	}
 
 	public function owner($file, $owneruid = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		if ($owneruid === false) {
 			$result = $this->link->stat($file);
 			$owneruid = $result['uid'];
@@ -206,12 +256,11 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 
 	public function getchmod($file) {
 		$result = $this->link->stat($file);
-
-		return substr(decoct($result['permissions']),3);
+		return substr(decoct($result['mode']), -3, 3);
 	}
 
 	public function group($file, $gid = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		if ($gid === false) {
 			$result = $this->link->stat($file);
 			$gid = $result['gid'];
@@ -226,7 +275,7 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 	}
 
 	public function copy($source, $destination, $overwrite = false, $mode = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		if ( ! $overwrite && $this->exists($destination) )
 			return false;
 		$content = $this->get_contents($source);
@@ -236,12 +285,12 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 	}
 
 	public function move($source, $destination, $overwrite = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		return $this->link->rename($source, $destination);
 	}
 
 	public function delete($file, $recursive = false, $type = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		if ( 'f' == $type || $this->is_file($file) )
 			return $this->link->delete($file);
 		if ( ! $recursive )
@@ -255,57 +304,53 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 
 	public function is_file($file) {
 		$result = $this->link->stat($file);
-		return $result['type'] == NET_SFTP_TYPE_REGULAR;
+		return is_array($result) && $result['type'] == NET_SFTP_TYPE_REGULAR;
 	}
 
 	public function is_dir($path) {
 		$result = $this->link->stat($path);
-		return $result['type'] == NET_SFTP_TYPE_DIRECTORY;
+		return is_array($result) && $result['type'] == NET_SFTP_TYPE_DIRECTORY;
 	}
 
 	public function is_readable($file) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		return true;
 
 		return is_readable('ssh2.sftp://' . $this->sftp_link . '/' . $file);
 	}
 
 	public function is_writable($file) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		return true;
-
-		return is_writable('ssh2.sftp://' . $this->sftp_link . '/' . $file);
 	}
 
 	public function atime($file) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$result = $this->link->stat($file);
 		return $result['atime'];
 	}
 
 	public function mtime($file) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$result = $this->link->stat($file);
 		return $result['mtime'];
 	}
 
 	public function size($file) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$result = $this->link->stat($file);
 		return $result['size'];
 	}
 
 	public function touch($file, $time = 0, $atime = 0) {
-		//Not implmented.
+		// Not implemented.
 	}
 
 	public function mkdir($path, $chmod = false, $chown = false, $chgrp = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		$path = untrailingslashit($path);
 		if ( ! $chmod )
 			$chmod = FS_CHMOD_DIR;
-		//if ( ! ssh2_sftp_mkdir($this->sftp_link, $path, $chmod, true) )
-		//	return false;
 		if ( ! $this->link->mkdir($path) && $this->link->chmod($chmod, $path) )
 			return false;
 		if ( $chown )
@@ -316,12 +361,14 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 	}
 
 	public function rmdir($path, $recursive = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
 		return $this->delete($path, $recursive);
 	}
 
 	public function dirlist($path, $include_hidden = true, $recursive = false) {
-		if (!is_a($this->link, 'Net_SFTP')) return false;
+		
+		if (!is_a($this->link, 'phpseclib3\Net\SFTP')) return false;
+		
 		if ( $this->is_file($path) ) {
 			$limit_file = basename($path);
 			$path = dirname($path);
@@ -329,16 +376,31 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 			$limit_file = false;
 		}
 
-		if ( ! $this->is_dir($path) )
-			return false;
+		if ( ! $this->is_dir($path) ) return false;
 
 		$ret = array();
 		$entries = $this->link->rawlist($path);
 
-		if ( $entries === false )
-			return false;
+		if ( $entries === false ) return false;
 
 		foreach ($entries as $name => $entry) {
+			
+			/**
+			* e.g.
+			* 
+			* Array
+			* (
+			*    [size] => 75006
+			*    [uid] => 1010
+			*    [gid] => 1010
+			*    [mode] => 33188 # phpseclib v1 returned 'permissions' instead, but now we must do the conversion (below); the meaning of this value is explained at: https://phpseclib.com/docs/sftp#permissions
+			*    [type] => 1
+			*    [atime] => 1734797701
+			*    [mtime] => 1734797701
+			*    [filename] => file.php
+			* )
+			*/
+			
 			$struc = array();
 			$struc['name'] = $name;
 
@@ -351,15 +413,15 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 			if ( $limit_file && $struc['name'] != $limit_file )
 				continue;
 
-			$struc['perms'] 	= $entry['permissions'];
-			$struc['permsn']	= $this->getnumchmodfromh($struc['perms']);
+			$struc['perms'] 	= $this->convert_permissions_to_unix($entry['mode']);
+			$struc['permsn']	= $this->getnumchmodfromh($struc['perms']); // This method is in the parent class, WP_Filesystem_Base; its output is things like "0755" or "0644"
 			$struc['number'] 	= false;
 			$struc['owner']    	= $this->owner($path.'/'.$name, $entry['uid']);
 			$struc['group']    	= $this->group($path.'/'.$name, $entry['gid']);
 			$struc['size']    	= $entry['size'];//$this->size($path.'/'.$entry);
 			$struc['lastmodunix']= $entry['mtime'];//$this->mtime($path.'/'.$entry);
-			$struc['lastmod']   = date('M j',$struc['lastmodunix']);
-			$struc['time']    	= date('h:i:s',$struc['lastmodunix']);
+			$struc['lastmod']   = gmdate('M j',$struc['lastmodunix']); 
+			$struc['time']    	= gmdate('h:i:s',$struc['lastmodunix']);
 			$struc['type']		= $entry['type'] == NET_SFTP_TYPE_DIRECTORY ? 'd' : 'f';
 
 			if ( 'd' == $struc['type'] ) {
@@ -371,7 +433,61 @@ class WP_Filesystem_SSH2 extends WP_Filesystem_Base {
 
 			$ret[ $struc['name'] ] = $struc;
 		}
+
 		return $ret;
+	}
+	
+	/**
+	 * Converts a permissions integer as defined at https://phpseclib.com/docs/sftp#permissions into a textual UNIX representation (e.g. "-rw-r--r--")
+	 *
+	 * From WP_Filesystem_Base::gethchmod()
+	 *
+	 * @param Integer $perms
+	 *
+	 * @return String
+	 */
+	private function convert_permissions_to_unix($perms) {
+		
+		if ( ( $perms & 0xC000 ) === 0xC000 ) { // Socket.
+			$info = 's';
+		} elseif ( ( $perms & 0xA000 ) === 0xA000 ) { // Symbolic Link.
+			$info = 'l';
+		} elseif ( ( $perms & 0x8000 ) === 0x8000 ) { // Regular.
+			$info = '-';
+		} elseif ( ( $perms & 0x6000 ) === 0x6000 ) { // Block special.
+			$info = 'b';
+		} elseif ( ( $perms & 0x4000 ) === 0x4000 ) { // Directory.
+			$info = 'd';
+		} elseif ( ( $perms & 0x2000 ) === 0x2000 ) { // Character special.
+			$info = 'c';
+		} elseif ( ( $perms & 0x1000 ) === 0x1000 ) { // FIFO pipe.
+			$info = 'p';
+		} else { // Unknown.
+			$info = 'u';
+		}
+		
+		// Owner.
+		$info .= ( ( $perms & 0x0100 ) ? 'r' : '-' );
+		$info .= ( ( $perms & 0x0080 ) ? 'w' : '-' );
+		$info .= ( ( $perms & 0x0040 ) ?
+		( ( $perms & 0x0800 ) ? 's' : 'x' ) :
+		( ( $perms & 0x0800 ) ? 'S' : '-' ) );
+		
+		// Group.
+		$info .= ( ( $perms & 0x0020 ) ? 'r' : '-' );
+		$info .= ( ( $perms & 0x0010 ) ? 'w' : '-' );
+		$info .= ( ( $perms & 0x0008 ) ?
+		( ( $perms & 0x0400 ) ? 's' : 'x' ) :
+		( ( $perms & 0x0400 ) ? 'S' : '-' ) );
+		
+		// World.
+		$info .= ( ( $perms & 0x0004 ) ? 'r' : '-' );
+		$info .= ( ( $perms & 0x0002 ) ? 'w' : '-' );
+		$info .= ( ( $perms & 0x0001 ) ?
+		( ( $perms & 0x0200 ) ? 't' : 'x' ) :
+		( ( $perms & 0x0200 ) ? 'T' : '-' ) );
+		
+		return $info;
 	}
 	
 	/**

@@ -2,11 +2,13 @@
 Contributors: DavidAnderson, TerraFrost, pmbaldha
 Donate link: https://sourceforge.net/donate/index.php?group_id=198487
 Tags: ssh, sftp
-Requires at least: 3.1
-Tested up to: 5.2
-Stable tag: 0.8.2
+Requires at least: 5.0
+Requires PHP: 5.6
+Tested up to: 7.0
+Stable tag: 1.1.2
+License: MIT
 
-"SSH SFTP Updater Support" is the easiest way to keep your Wordpress installation up-to-date with SFTP.
+"SSH SFTP Updater Support" is the easiest way to keep your WordPress installation up-to-date with SFTP.
 
 == Description ==
 
@@ -16,15 +18,13 @@ To use it, after installing and activating the plugins, add the necessary consta
 
 a) `define('FS_METHOD', 'ssh2');`
 
-b) Others as <a href="https://codex.wordpress.org/Editing_wp-config.php#WordPress_Upgrade_Constants">detailed in the official WP codex</a>
+b) Others as <a href="https://developer.wordpress.org/apis/wp-config-php/#wordpress-upgrade-constants">detailed in the official WP codex</a>
 
 This plugin is offered and maintained as a free service to the WP community. You might also be interested in enhancing your WordPress site with our other top plugins, below.
 
 * **[UpdraftPlus](https://updraftplus.com/?ref=212&source=sshsmtp)** simplifies backups and restoration. It is the #1 most-used backup/restore plugin, with over a million currently-active installs.
 * **[UpdraftCentral](https://updraftplus.com/updraftcentral/?ref=212&source=sshsmtp)** - a highly efficient way to manage, optimize, update and backup multiple websites from one place.
 * **[WP-Optimize](https://getwpo.com/)** helps you to optimize and clean your WordPress database so that it runs at maximum efficiency.
-* **[Keyy](https://getkeyy.com/)**: Simple and secure logins with a wave of your phone.
-* **[MetaSlider](https://www.metaslider.com)**: Easily create beautifully-designed sliders with the #1-most installed WP slider plugin.
 * **More quality plugins**: **[Premium WooCommerce extensions](https://www.simbahosting.co.uk/s3/shop/)** | **[Other useful plugins](https://profiles.wordpress.org/davidanderson#content-plugins)**
 
 == Installation ==
@@ -37,9 +37,60 @@ This plugin is offered and maintained as a free service to the WP community. You
 
 a) `define('FS_METHOD', 'ssh2');`
 
-b) Others as <a href="https://codex.wordpress.org/Editing_wp-config.php#WordPress_Upgrade_Constants">detailed in the official WP codex</a>
+b) Others as <a href="https://developer.wordpress.org/apis/wp-config-php/#wordpress-upgrade-constants">detailed in the official WP codex</a> or various other articles (Google for things like WordPress updates via SFTP).
 
 == Changelog ==
+
+= 1.1.2 - 2026/May/02 =
+
+* TWEAK Update the bundled phpseclib library to the latest 3.0 version.
+
+= 1.1.1 - 2026/Jan/26 =
+
+* TWEAK: Prevent PHP notice for undefined variable in a dashboard context
+
+= 1.1.0 - 2025/Dec/16 =
+
+* TWEAK: Update the bundled phpseclib library to the latest 3.0 version.
+
+= 1.0.0 - 2024/Dec/24 =
+
+* FEATURE: Updated bundled phpseclib library to 3.0 series and amend code accordingly, thereby bringing access to various newer cryptographic algorithms
+* REQUIREMENTS: Requires PHP 5.6+ (as required by phpseclib 3.0)
+
+= 0.9.0 - 2024/Dec/18 =
+
+* TWEAK: Updated bundled phpseclib library to 2.0 series
+* REQUIREMENTS: Requires PHP 5.3+ (as required by phpseclib 2.0)
+* REQUIREMENTS: Requires WP 5.0
+
+= 0.8.8 - 2024/Oct/29 =
+
+* FIX: Remove unwanted tab from the "private key" field, and remove duplicate radio buttons (regression in 0.8.7). You can download the plugin manually from https://downloads.wordpress.org/plugin/ssh-sftp-updater-support.0.8.8.zip and upload it in your WP dashboard in "Plugins -> Add New -> Upload Zip" if you are having trouble updating through the dashboard.
+
+= 0.8.7 - 2024/Oct/28 =
+
+* TWEAK: Add some missing translation domains
+* TWEAK: Resolve Plugin Check messages
+* TWEAK: Add explicit License field
+
+= 0.8.6 - 2024/Jul/04 =
+
+* TWEAK: Update to latest 1.0.x version of phpseclib
+
+= 0.8.5 - 2022/Dec/08 =
+
+* TWEAK: Update URL reference to current location
+
+= 0.8.4 - 2020/Dec/30 =
+
+* TWEAK: Remove obsolete references to other plugins
+* TWEAK: Replace some further deprecated jQuery styles
+* TWEAK: Update to latest 1.0.x version of phpseclib
+
+= 0.8.3 - 2020/Dec/19 =
+
+* TWEAK: Replace deprecated jQuery style
 
 = 0.8.2 - 2019/Jun/22 =
 
@@ -116,4 +167,4 @@ b) Others as <a href="https://codex.wordpress.org/Editing_wp-config.php#WordPres
 * Initial Release
 
 == Upgrade Notice ==
-* 0.8.2 : Make the FTP_* constants apply
+* 1.1.2: Update phpseclib version. N.B. If you are currently on 0.8.7 and cannot update through the dashboard, then you can download the plugin manually from https://downloads.wordpress.org/plugin/ssh-sftp-updater-support.1.1.2.zip and upload it in your WP dashboard in "Plugins -> Add New -> Upload Zip".

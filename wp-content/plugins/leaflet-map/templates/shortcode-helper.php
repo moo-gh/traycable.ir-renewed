@@ -18,6 +18,11 @@
         stroke-dashoffset: -1000;
       }
     }
+
+    /* wordpress messes up video tags */ 
+    video {
+        max-width: inherit;
+    }
 </style>
 
 <div class="wrap">
@@ -33,12 +38,12 @@
         ?>
         <div class="wrap">
             <hr>
-            <h2><?php _e('Interactive Shortcodes:', 'leaflet-map'); ?></h2>
-            <p class="description"><?php _e('Move the map and the marker to generate shortcodes below:', 'leaflet-map'); ?></p>
-            <div class="flex"><label class="h3" for="map-shortcode"><?php _e('Map Shortcode', 'leaflet-map'); ?></label> <input type="text" id="map-shortcode" readonly="readonly" /></div>
-            <div class="flex"><label class="h3" for="marker-shortcode"><?php _e('Marker Shortcode', 'leaflet-map'); ?></label> <input type="text" id="marker-shortcode" readonly="readonly" /></div>
+            <h2><?php esc_html_e('Interactive Shortcodes:', 'leaflet-map'); ?></h2>
+            <p class="description"><?php esc_html_e('Move the map and the marker to generate shortcodes below:', 'leaflet-map'); ?></p>
+            <div class="flex"><label class="h3" for="map-shortcode"><?php esc_html_e('Map Shortcode', 'leaflet-map'); ?></label> <input type="text" id="map-shortcode" readonly="readonly" /></div>
+            <div class="flex"><label class="h3" for="marker-shortcode"><?php esc_html_e('Marker Shortcode', 'leaflet-map'); ?></label> <input type="text" id="marker-shortcode" readonly="readonly" /></div>
             <hr>
-            <h2><?php _e('Examples', 'leaflet-map'); ?>:</h2>
+            <h2><?php esc_html_e('Examples', 'leaflet-map'); ?>:</h2>
             <div class="examples">
             <?php
             $examples = array(
@@ -56,7 +61,7 @@
                     '[leaflet-marker draggable]',
                     ),
                 __("Marker Icon", 'leaflet-map') => array(
-                    '[leaflet-map zoom=14 address="Ha Ling, canmore" scrollwheel !detect-retina]',
+                    '[leaflet-map zoom=14 address="Ha Ling, canmore" scrollwheel !detect-retina show_scale]',
                     '[leaflet-marker iconUrl="https://i.imgur.com/Q54ueuO.png" iconSize="80,50" iconAnchor="40,60"]'
                     ),
                 __("SVG Marker Icon", 'leaflet-map') => array(
@@ -65,9 +70,6 @@
                     ),
                 __("Zoom Buttons", 'leaflet-map') => array(
                     '[leaflet-map zoom=10 lat=48.855 lng=2.35 zoomcontrol !detect-retina]',
-                    ),
-                __("Alternate Map Tiles w/scrollwheel", 'leaflet-map') => array(
-                    '[leaflet-map zoom=2 scrollwheel lat=-2.507 lng=32.902 tileurl=https://stamen-tiles-{s}.a.ssl.fastly.net/watercolor/{z}/{x}/{y}.jpg subdomains=abcd attribution="Map tiles by Stamen Design, under CC BY 3.0."]',
                     ),
                 __("Marker Popup Messages (on click)", 'leaflet-map') => array(
                     '[leaflet-map lat=59.913 lng=10.739 zoom=12]',
@@ -86,8 +88,9 @@
                     '[leaflet-polygon addresses="Miami; San Juan; Bermuda" color="green" fillColor="yellow"]<a href="https://en.wikipedia.org/wiki/Bermuda_Triangle" target="_blank">Bermuda Triangle</a>[/leaflet-polygon]'
                     ),
                 __("Basic Circle", 'leaflet-map') => array(
-                    '[leaflet-map lat=52 lng=5 zoom=9]',
-                    '[leaflet-circle lat=52 lng=5 radius=17500]'
+                    '[leaflet-map lat=52 lng=5 zoom=8.2 zoomcontrol !show_scale]',
+                    '[leaflet-circle lat=52 lng=5 radius=17500]',
+                    '[leaflet-scale position=topright]'
                     ),
                 __("Fitted Colored Line on Addresses", 'leaflet-map') => array(
                     '[leaflet-map fitbounds]',
@@ -98,7 +101,7 @@
                     '[leaflet-line color="red" weight=10 dasharray="2,15" addresses="Halifax, Nova Scotia; Tanzania" classname=marching-ants]'
                     ),
                 __("Disable all Interaction", 'leaflet-map') => array(
-                    '[leaflet-map address="las vegas" !boxZoom !doubleClickZoom !dragging !keyboard !scrollwheel !attribution !touchZoom]',
+                    '[leaflet-map address="las vegas" !boxZoom !doubleClickZoom !dragging !keyboard !scrollwheel !attribution !touchZoom !show_scale]',
                     ),
                 __("Add GeoJSON by URL", 'leaflet-map') => array(
                     '[leaflet-map fitbounds scrollwheel]',
@@ -122,7 +125,18 @@
                 __("Image Map", 'leaflet-map') => array(
                     '[leaflet-image zoom=1 zoomcontrol scrollwheel !attribution]',
                     '[leaflet-marker draggable]'
-                    ),
+                ),
+                __("Image Overlay Map", 'leaflet-map') => array(
+                    '[leaflet-map fitbounds]',
+                    '[leaflet-image-overlay]',
+                ),
+                __("Video Overlay Map", 'leaflet-map') => array(
+                    '[leaflet-map fitbounds]',
+                    '[leaflet-video-overlay]',
+                ),
+                __("WMS Map", 'leaflet-map') => array(
+                    '[leaflet-wms zoomControl zoom=5 lat=38.9252 lng=35.33203 attribution="For Those of Us in Turkey"]',
+                ),
                 );
 
             foreach ($examples as $title => $collection) {

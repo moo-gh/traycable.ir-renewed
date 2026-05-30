@@ -1,3 +1,7 @@
 .env
 traycable_db_volume/
 .well-known/
+
+wp-content/upgrade/
+wp-content/cache/
+wp-content/backups/

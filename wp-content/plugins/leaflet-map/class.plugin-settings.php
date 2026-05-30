@@ -2,8 +2,6 @@
 /**
  * Class for getting and setting db/default values
  * 
- * PHP Version 5.5
- * 
  * @category Admin
  * @author   Benjamin J DeLong <ben@bozdoz.com>
  */
@@ -14,6 +12,8 @@ if (!defined('ABSPATH')) {
 }
 
 require_once LEAFLET_MAP__PLUGIN_DIR . 'class.plugin-option.php';
+
+// TODO: add option to reset just a single field
 
 /**
  * Used to get and set values
@@ -71,7 +71,7 @@ class Leaflet_Map_Plugin_Settings
         /* update leaflet version from main class */
         $leaflet_version = Leaflet_Map::$leaflet_version;
 
-        $foreachmap = __('You can also change this for each map');
+        $foreachmap = __('You can also change this for each map', 'leaflet-map');
 
         /* 
         * initiate options using internationalization! 
@@ -80,7 +80,7 @@ class Leaflet_Map_Plugin_Settings
             'default_lat' => array(
                 'display_name'=>__('Default Latitude', 'leaflet-map'),
                 'default'=>'44.67',
-                'type' => 'text',
+                'type' => 'number',
                 'helptext' => sprintf(
                     '%1$s %2$s <br /> <code>[leaflet-map lat="44.67"]</code>', 
                     __('Default latitude for maps.', 'leaflet-map'),
@@ -90,7 +90,7 @@ class Leaflet_Map_Plugin_Settings
             'default_lng' => array(
                 'display_name'=>__('Default Longitude', 'leaflet-map'),
                 'default'=>'-63.61',
-                'type' => 'text',
+                'type' => 'number',
                 'helptext' => sprintf(
                     '%1$s %2$s <br /> <code>[leaflet-map lng="-63.61"]</code>', 
                     __('Default longitude for maps.', 'leaflet-map'),
@@ -100,7 +100,10 @@ class Leaflet_Map_Plugin_Settings
             'default_zoom' => array(
                 'display_name'=>__('Default Zoom', 'leaflet-map'),
                 'default'=>'12',
-                'type' => 'text',
+                'type' => 'number',
+				'min' => 0,
+				'max' => 20,
+				'step' => 1,
                 'helptext' => sprintf(
                     '%1$s %2$s <br /> <code>[leaflet-map zoom="5"]</code>', 
                     __('Default zoom for maps.', 'leaflet-map'),
@@ -128,7 +131,7 @@ class Leaflet_Map_Plugin_Settings
                 )
             ),
             'fit_markers' => array(
-                'display_name'=>__('Fit Markers', 'leaflet-map'),
+                'display_name'=>__('Fit Bounds', 'leaflet-map'),
                 'default' => '0',
                 'type' => 'checkbox',
                 'helptext' => sprintf(
@@ -170,7 +173,10 @@ class Leaflet_Map_Plugin_Settings
             'default_min_zoom' => array(
                 'display_name'=>__('Default Min Zoom', 'leaflet-map'),
                 'default' => '0',
-                'type' => 'text',
+                'type' => 'number',
+				'min' => 0,
+				'max' => 20,
+				'step' => 1,
                 'helptext' => sprintf(
                     '%1$s %2$s <br /> <code>[leaflet-map min_zoom="1"]</code>', 
                     __('Restrict the viewer from zooming in past the minimum zoom.  Can set per map in shortcode or adjust for all maps here.', 'leaflet-map'),
@@ -179,8 +185,11 @@ class Leaflet_Map_Plugin_Settings
             ),
             'default_max_zoom' => array(
                 'display_name'=>__('Default Max Zoom', 'leaflet-map'),
-                'default' => '20',
-                'type' => 'text',
+                'default' => '19',
+                'type' => 'number',
+				'min' => 0,
+				'max' => 20,
+				'step' => 1,
                 'helptext' => sprintf(
                     '%1$s %2%s <br /> <code>%3$s</code>', 
                     __('Restrict the viewer from zooming out past the maximum zoom.  Can set per map in shortcode or adjust for all maps here', 'leaflet-map'),
@@ -214,10 +223,10 @@ class Leaflet_Map_Plugin_Settings
             ),
             'map_tile_url' => array(
                 'display_name'=>__('Map Tile URL', 'leaflet-map'),
-                'default'=>'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                'default'=>'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 'type' => 'text',
                 'helptext' => sprintf(
-                    '%1$s: <a href="http://wiki.openstreetmap.org/wiki/Tile_servers" target="_blank"> %2$s </a>. %3$s: <a href="http://devblog.mapquest.com/2016/06/15/modernization-of-mapquest-results-in-changes-to-open-tile-access/" target="_blank"> %4$s </a>. %5$s <br/> <code>[leaflet-map tileurl=http://{s}.tile.stamen.com/watercolor/{z}/{x}/{y}.jpg subdomains=abcd]</code>',
+                    '%1$s: <a href="http://wiki.openstreetmap.org/wiki/Tile_servers" target="_blank"> %2$s </a>. %3$s: <a href="http://devblog.mapquest.com/2016/06/15/modernization-of-mapquest-results-in-changes-to-open-tile-access/" target="_blank"> %4$s </a>. %5$s <br/> <code>[leaflet-map tileurl=http://{s}.example.com/{z}/{x}/{y}.jpg subdomains=abcd]</code>',
                     __('See more tile servers', 'leaflet-map'),
                     __('here', 'leaflet-map'),
                     __('Please note: free tiles from MapQuest have been discontinued without use of an API key', 'leaflet-map'),
@@ -231,7 +240,7 @@ class Leaflet_Map_Plugin_Settings
                 'type' => 'text',
                 'helptext' => sprintf(
                     '%1$s %2$s <br/> <code>[leaflet-map subdomains="1234"]</code>',
-                    __('Some maps get tiles from multiple servers with subdomains such as a,b,c,d or 1,2,3,4', 'leaflet-map'),
+                    __('Some maps get tiles from multiple servers with subdomains such as a,b,c or 1,2,3 or cache1,cache2; pass a string where each char is its own subdomain, or pass comma-separated string', 'leaflet-map'),
                     $foreachmap
                 )
             ),
@@ -242,6 +251,56 @@ class Leaflet_Map_Plugin_Settings
                 'helptext' => sprintf(
                     '%1$s %2$s <br /> <code>[leaflet-map detect-retina]</code>',
                     __('Fetch tiles at different zoom levels to appear smoother on retina displays.', 'leaflet-map'),
+                    $foreachmap
+                )
+            ),
+            'tilesize' => array(
+                'display_name' => __('Tile Size', 'leaflet-map'),
+                'default' => null,
+                'type' => 'text',
+                'helptext' => sprintf(
+                    '%1$s %2$s <br /> <code>[leaflet-map tilesize=512]</code>',
+                    __('Width and height of tiles (in pixels) in the grid. Default is 256', 'leaflet-map'),
+                    $foreachmap
+                )
+            ),
+            'mapid' => array(
+                'display_name' => __('Tile Id', 'leaflet-map'),
+                'default' => null,
+                'type' => 'text',
+                'helptext' => sprintf(
+                    '%1$s %2$s <br /> <code>[leaflet-map mapid="mapbox/streets-v11"]</code>',
+                    __('An id that is passed to L.tileLayer; useful for Mapbox', 'leaflet-map'),
+                    $foreachmap
+                )
+            ),
+            'accesstoken' => array(
+                'display_name' => __('Access Token', 'leaflet-map'),
+                'default' => null,
+                'type' => 'text',
+                'helptext' => sprintf(
+                    '%1$s %2$s <br /> <code>[leaflet-map accesstoken="your.mapbox.access.token"]</code>',
+                    __('An access token that is passed to L.tileLayer; useful for Mapbox tiles', 'leaflet-map'),
+                    $foreachmap
+                )
+            ),
+            'zoomoffset' => array(
+                'display_name' => __('Zoom Offset', 'leaflet-map'),
+                'default' => null,
+                'type' => 'number',
+                'helptext' => sprintf(
+                    '%1$s %2$s <br /> <code>[leaflet-map zoomoffset="-1"]</code>',
+                    __('The zoom number used in tile URLs will be offset with this value', 'leaflet-map'),
+                    $foreachmap
+                )
+            ),
+            'tile_no_wrap' => array(
+                'display_name' => __('No Wrap (tiles)', 'leaflet-map'),
+                'default' => '0',
+                'type' => 'checkbox',
+                'helptext' => sprintf(
+                    '%1$s %2$s <br /> <code>[leaflet-map nowrap]</code>',
+                    __('Boolean for whether the layer is wrapped around the antimeridian', 'leaflet-map'),
                     $foreachmap
                 )
             ),
@@ -260,12 +319,21 @@ class Leaflet_Map_Plugin_Settings
             'default_attribution' => array(
                 'display_name' => __('Default Attribution', 'leaflet-map'),
                 'default' => sprintf(
-                    '<a href="http://leafletjs.com" title="%1$s">Leaflet</a>; \r\n© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> %2$s',
+                    '<a href="http://leafletjs.com" title="%1$s">Leaflet</a>; © <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> %2$s',
                     __("A JS library for interactive maps", 'leaflet-map'),
                     __("contributors", 'leaflet-map')
                 ),
                 'type' => 'textarea',
                 'helptext' => __('Attribution to a custom tile url.  Use semi-colons (;) to separate multiple.', 'leaflet-map')
+            ),
+            'show_scale' => array(
+                'display_name' => __('Show Scale', 'leaflet-map'),
+                'default' => '0',
+                'type' => 'checkbox',
+                'helptext' => __(
+                    'Add a scale to each map. Can also be added via shortcode <br /> <code>[leaflet-scale]</code>', 
+                    'leaflet-map'
+                )
             ),
             'geocoder' => array(
                 'display_name'=>__('Geocoder', 'leaflet-map'),
@@ -277,6 +345,19 @@ class Leaflet_Map_Plugin_Settings
                     'dawa' => __('Denmark Addresses', 'leaflet-map')
                 ),
                 'helptext' => __('Select the Geocoding provider to use to retrieve addresses defined in shortcode.', 'leaflet-map')
+            ),
+            'nominatim_contact_email' => array(
+                'display_name'=>__('Nominatim Contact Email (optional)', 'leaflet-map'),
+                'default' => '',
+                'type' => 'text',
+                'placeholder' => sprintf(
+                    __('defaults to admin email (%s)', 'leaflet-map'),
+                    get_bloginfo('admin_email')
+                ),
+                'helptext' => __(
+                    'Optional contact email to send with OpenStreetMap Nominatim geocoding requests. If blank, the site admin email will be used.',
+                    'leaflet-map'
+                ),
             ),
             'google_appkey' => array(
                 'display_name'=>__('Google API Key (optional)', 'leaflet-map'),

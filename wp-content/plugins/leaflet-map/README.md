@@ -1,7 +1,7 @@
 # Leaflet Map WordPress Plugin
 
-![Leaflet](https://img.shields.io/badge/leaflet-1.6.0-green.svg?style=flat)
-![WordPress](https://img.shields.io/badge/wordpress-5.3.2-green.svg?style=flat)
+![Leaflet](https://img.shields.io/badge/leaflet-1.7.1-green.svg?style=flat)
+![WordPress](https://img.shields.io/badge/wordpress-5.6.1-green.svg?style=flat)
 
 ![Header Image](https://ps.w.org/leaflet-map/assets/banner-1544x500.png?rev=1693083)
 
@@ -21,6 +21,8 @@ Add a map generated with [LeafletJS](http://leafletjs.com/): an open-source Java
       - [[leaflet-map] Options:](#leaflet-map-options)
     - [[leaflet-image]](#leaflet-image)
       - [[leaflet-image] Options:](#leaflet-image-options)
+    - [[leaflet-wms]](#leaflet-wms)
+      - [[leaflet-wms] Options:](#leaflet-wms-options)
     - [[leaflet-marker]](#leaflet-marker)
       - [[leaflet-marker] Options:](#leaflet-marker-options)
     - [[leaflet-line]](#leaflet-line)
@@ -32,6 +34,9 @@ Add a map generated with [LeafletJS](http://leafletjs.com/): an open-source Java
       - [[leaflet-geojson] Options](#leaflet-geojson-options)
     - [[leaflet-kml]](#leaflet-kml)
     - [[leaflet-gpx]](#leaflet-gpx)
+    - [[leaflet-scale]](#leaflet-scale)
+    - [[leaflet-image-overlay]](#leaflet-image-overlay)
+    - [[leaflet-video-overlay]](#leaflet-video-overlay)
   - [Frequently Asked Questions](#frequently-asked-questions)
     - [How Can I Add another Leaflet Plugin?](#how-can-i-add-another-leaflet-plugin)
   - [Contributing](#contributing)
@@ -39,9 +44,7 @@ Add a map generated with [LeafletJS](http://leafletjs.com/): an open-source Java
 
 ## Installation
 
-- (simple) Install via the WordPress plugins page on your WordPress site: `/wp-admin/plugin-install.php` (search Leaflet)
-
-- (needlessly complicated) Copy this repo (or download a release of it) into your WordPress plugins directory: `/wp-content/plugins/`. You might also need to name the directory 'leaflet-map', like so: `git clone https://github.com/bozdoz/wp-plugin-leaflet-map.git leaflet-map`
+- Install via the WordPress plugins page on your WordPress site: `/wp-admin/plugin-install.php` (search Leaflet)
 
 ## General Usage
 
@@ -70,17 +73,10 @@ This plugin uses Docker for development. Simply:
 1. execute this command from the repo's root directory in your terminal:
 
 ```bash
-docker-compose up
+docker compose up
 ```
 
-You should also have node and NPM installed if you want to edit JavaScript files, and need to minify them:
-
-```bash
-npm install
-npm run minify
-```
-
-You can also use these NPM scripts to interact with Docker, if you make changes to Docker-related files:
+You can also use NPM scripts to interact with Docker, if you make changes to Docker-related files:
 
 To start:
 
@@ -114,29 +110,45 @@ However, you can also just give it an address, and the chosen geocoder (default:
 [leaflet-map address="Oslo, Norway"]
 ```
 
+When using the OpenStreetMap Nominatim geocoder, the plugin sends a contact email in the request user agent. By default this uses the site admin email, but you can override it in the plugin settings with `Nominatim Contact Email (optional)` or in code with the `leaflet_map_nominatim_contact_email` filter.
+
+```php
+add_filter('leaflet_map_nominatim_contact_email', function ($email) {
+    return 'maps@example.com';
+});
+```
+
 #### [leaflet-map] Options:
 
-| Option                       | Default                 |
-| ---------------------------- | ----------------------- |
-| `lat` and `lng` or `address` | lat: 44.67, lng: -63.61 |
-| `zoom`                       | 12                      |
-| `height`                     | 250                     |
-| `width`                      | 100%                    |
-| `fitbounds`                  | 0 (false)               |
-| `zoomcontrol`                | 0 (false)               |
-| `scrollwheel`                | 0 (false)               |
-| `doubleclickzoom`            | 0 (false)               |
-| `min_zoom`                   | 0                       |
-| `max_zoom`                   | 20                      |
-| `subdomains`                 | abc                     |
-| `attribution`                | ©Leaflet ©OpenStreetMap |
-| `closepopuponclick`          | false                   |
-| `trackresize`                | false                   |
-| `boxZoom`                    | true                    |
-| `dragging`                   | true                    |
-| `keyboard`                   | true                    |
-| `maxbounds`                  | null                    |
-| `detect-retina`              | 0 (false)               |
+| Option                       | Default                                              |
+| ---------------------------- | ---------------------------------------------------- |
+| `lat` and `lng` or `address` | lat: 44.67, lng: -63.61                              |
+| `zoom`                       | 12                                                   |
+| `height`                     | 250                                                  |
+| `width`                      | 100%                                                 |
+| `fitbounds`                  | 0 (false)                                            |
+| `zoomcontrol`                | 0 (false)                                            |
+| `scrollwheel`                | 0 (false)                                            |
+| `doubleclickzoom`            | 0 (false)                                            |
+| `min_zoom`                   | 0                                                    |
+| `max_zoom`                   | 20                                                   |
+| `subdomains`                 | abc                                                  |
+| `attribution`                | ©Leaflet ©OpenStreetMap                              |
+| `closepopuponclick`          | false                                                |
+| `trackresize`                | false                                                |
+| `boxZoom`                    | true                                                 |
+| `dragging`                   | true                                                 |
+| `keyboard`                   | true                                                 |
+| `maxbounds`                  | null                                                 |
+| `detect-retina`              | 0 (false)                                            |
+| `tileurl`                    | 'https://tile.openstreetmap.org/{z}/{x}/{y}.png' |
+| `subdomains`                 | 'abc'                                                |
+| `tap`                        | true                                                 |
+| `tilesize`                   | 256                                                  |
+| `mapid`                      | null                                                 |
+| `accesstoken`                | null                                                 |
+| `zoomoffset`                 | 0                                                    |
+| `nowrap`                     | false                                                |
 
 ---
 
@@ -168,6 +180,39 @@ Then in the console, check the coordinates when you move the marker (should only
 | `min_zoom`        | 0                                |
 | `max_zoom`        | 20                               |
 | `attribution`     | ©Leaflet ©OpenStreetMap          |
+| `x`               | 0                                |
+| `y`               | 0                                |
+
+---
+
+### [leaflet-wms]
+
+Much the same as leaflet-map above, but for wms services and uses `src` for the service url, 
+`layer` for the layer name and `crs` for the coordination system (only supported by 
+leaflet: EPSG:3857 and EPSG:4326).
+```
+[leaflet-wms source="https://your/wms/service?" layer="yourLayer" crs="EPSG:3857" zoom=1]
+```
+
+#### [leaflet-wms] Options:
+
+| Option            | Default                                   |
+| ----------------- | ----------------------------------------- |
+| `src`             | https://ows.mundialis.de/services/service? |
+| `layer `          | TOPO-OSM-WMS                              |
+| `crs `            | EPSG:3857                                 |
+| `zoom`            | 12                                        |
+| `height`          | 250                                       |
+| `width`           | 100%                                      |
+| `fitbounds`       | 0 (false)                                 |
+| `zoomcontrol`     | 0 (false)                                 |
+| `scrollwheel`     | 0 (false)                                 |
+| `doubleclickzoom` | 0 (false)                                 |
+| `min_zoom`        | 0                                         |
+| `max_zoom`        | 20                                        |
+| `attribution`     | ©Leaflet ©OpenStreetMap                   |
+| `lat`             | 0                                         |
+| `lng`             | 0                                         |
 
 ---
 
@@ -194,6 +239,7 @@ Add a marker to any map by adding `[leaflet-marker]` after any `[leaflet-map]` s
 | `shadowsize`                 | Set the size of the shadow: e.g. "80,50" for 80px width 50px height                        |
 | `shadowanchor`               | Set the anchor position of the shadow: e.g. "40,60" for 40px left 60px top                 |
 | `popupanchor`                | Set the anchor position of the popup: e.g. "40,60" for 40px left 60px top                  |
+| `tooltipanchor`              | Set the anchor position of the tooltip: e.g. "40,60" for 40px left 60px top                |
 | `svg`                        | Boolean for whether the marker should be created as an svg: default `false`                |
 | `background`                 | Background color for an SVG marker (above)                                                 |
 | `color`                      | color of the SVG marker (above)                                                            |
@@ -218,7 +264,7 @@ Add a popup to the line by adding text to the content of the shortcode:
 | `addresses`, `latlngs`, or `coordinates` | For geocoded addresses, latitude/longitude, or x/y coordinates for Image Maps; ex: `[leaflet-line latlngs="41, 29; 44, 18"]` or addresses: `[leaflet-line addresses="Istanbul; Sarajevo"]` |
 | `fitbounds`                              | Fit the map to the bounds of the line (instead of whatever center you gave the map originally)                                                                                             |
 
-And the following Shape Options. See https://leafletjs.com/reference-1.3.4.html#path for details.
+And the following Shape Options. See https://leafletjs.com/reference.html#path for details.
 'stroke', 'color', 'weight', 'opacity',
 'lineCap', 'lineJoin', 'dashArray', 'dashOffset'
 'fill', 'fillColor', 'fillOpacity', 'fillRule', 'className'
@@ -235,7 +281,7 @@ Virtually the same as [leaflet-line](above)
 
 ![Circle](https://i.imgur.com/rVHH6Zm.png?1234)
 
-Add a circle to the map by adding `[leaflet-circle]`. You can specify the position using `lat` and `lng` and the radius in meters using `radius`. You can also customize the style using [Leaflet's Path options](https://leafletjs.com/reference-1.3.4.html#path-option). Example: `[leaflet-circle message="max distance" lng=5.1179 lat=52.0979 radius=17500 color="#0DC143" fillOpacity=0.1]`.
+Add a circle to the map by adding `[leaflet-circle]`. You can specify the position using `lat` and `lng` and the radius in meters using `radius`. You can also customize the style using [Leaflet's Path options](https://leafletjs.com/reference.html#path). Example: `[leaflet-circle message="max distance" lng=5.1179 lat=52.0979 radius=17500 color="#0DC143" fillOpacity=0.1]`.
 
 #### [leaflet-circle] Options
 
@@ -245,7 +291,7 @@ Add a circle to the map by adding `[leaflet-circle]`. You can specify the positi
 | `fitbounds`                    | Fit the map to the bounds of the circle (instead of whatever center you gave the map originally)                                                                                              |
 | radius                         | Radius of the circle in meters                                                                                                                                                                |
 
-Includes all style options: See https://leafletjs.com/reference-1.3.4.html#path
+Includes all style options: See https://leafletjs.com/reference.html#path
 
 ---
 
@@ -269,8 +315,14 @@ Or you can add a geojson shape via a url:
 | `fitbounds`      | Fit the map to the bounds of all shapes (instead of whatever center you gave the map originally) |
 | `circleMarker`   | Display circles instead of markers. Vastly improves performance on maps with a lot of points.    |
 | `radius`         | Radius of the circles, when `circleMarkers` is set                                               |
+| `table-view`     | Show all properties on each feature when clicked                                                 |
+| `iconurl`        | Give a url for the marker image file                                                             |
+| `iconsize`       | Set the size of the icon: e.g. "80,50" for 80px width 50px height                                |
+| `iconanchor`     | Set the anchor position of the icon: e.g. "40,60" for 40px left 60px top                         |
+| `popupanchor`    | Set the anchor position of the popup: e.g. "40,60" for 40px left 60px top                        |
+| `tooltipanchor`  | Set the anchor position of the tooltip: e.g. "40,60" for 40px left 60px top                      |
 
-Includes all style options: See https://leafletjs.com/reference-1.3.4.html#path. Also, if you want to add feature
+Includes all style options: See https://leafletjs.com/reference.html#path. Also, if you want to add feature
 properties to the popups, use the inner content and curly brackets to substitute the values:
 `[leaflet-geojson]Field A = {field_a}[/leaflet-geojson]`.
 
@@ -281,6 +333,47 @@ Same idea as geojson (above), but takes KML files and loads [Mapbox's togeojson 
 ### [leaflet-gpx]
 
 Same idea as geojson and KML (above), but takes GPX files and also loads [Mapbox's togeojson library](https://github.com/mapbox/togeojson)
+
+### [leaflet-scale]
+
+Can be added after any map, or enabled for all maps in the admin. If you want to extend it, you can extend window.WPLeafletMapPlugin.createScale with custom JavaScript.
+
+| Option           | Default   |
+| ---------------- | --------- |
+| `maxWidth`       | 100       |
+| `metric`         | 1 (true)  |
+| `imperial`       | 1 (true)  |
+| `updateWhenIdle` | 0 (false) |
+| `position`       | topright  |
+
+### [leaflet-image-overlay]
+
+```
+[leaflet-image-overlay src="https://www.lib.utexas.edu/maps/historical/newark_nj_1922.jpg" bounds="40.799311,-74.118464;40.68202047785919,-74.33"]
+```
+
+#### [leaflet-image-overlay] Options
+
+| Option            | Usage                                                                         |
+| ----------------- | ----------------------------------------------------------------------------- |
+| `src`             | Source of the image file                                                      |
+| `bounds`          | coordinates for south-west, and north-east coordinates                        |
+| `interactive`     | triggers mouse events (not recommended)                                       |
+| `opacity`         | 0 - 1 for opaciity of the image                                               |
+| `alt`             | alt attribute for the image                                                   |
+| `crossOrigin`     | Whether the crossOrigin attribute will be added to the image                  |
+| `errorOverlayUrl` | URL to the overlay image to show in place of the overlay that failed to load. |
+| `zIndex`          | The explicit zIndex of the overlay layer                                      |
+| `className`       | The className attribute for the image                                         |
+| `attribution`     | String to be shown in the attribution control                                 |
+
+### [leaflet-video-overlay]
+
+Same options as [leaflet-image-overlay]
+
+```
+[leaflet-video-overlay src="https://www.mapbox.com/bites/00188/patricia_nasa.webm" bounds="32,-130;13,-100"]
+```
 
 ## Frequently Asked Questions
 
@@ -306,27 +399,38 @@ function fs_leaflet_loaded() {
 /js/full-screen.js
 
 ```js
-(function() {
+(function () {
   function main() {
     if (!window.WPLeafletMapPlugin) {
-      console.log("no plugin found!");
+      console.log('no plugin found!');
       return;
     }
 
-    // iterate any of these: `maps`, `markers`, `markergroups`, `lines`, `circles`, `geojsons`
+    // iterate any of these arrays: `maps`, `markers`, `lines`, `circles`, `geojsons`
     var maps = window.WPLeafletMapPlugin.maps;
+
+    // Note: `markergroups` is an *object*. If you'd like to iterate it, you can do it like this:
+    // var markergroups = window.WPLeafletMapPlugin.markergroups;
+    // var keys = Object.keys(markergroups);
+    // for (var i = 0, len = keys.length; i < len; i++) {
+    //   var markergroup = markergroups[keys[i]];
+    // }
 
     for (var i = 0, len = maps.length; i < len; i++) {
       var map = maps[i];
-      map.whenReady(function() {
+      map.whenReady(function () {
         this.addControl(new L.Control.Fullscreen());
       });
     }
   }
 
-  window.addEventListener("load", main);
+  window.addEventListener('load', main);
 })();
 ```
+
+### Are there some examples for adding a Leaflet Plugin and other functions?
+
+Take a look at the functions of [Extensions for Leaflet Map](https://wordpress.org/plugins/extensions-leaflet-map/).
 
 ## Contributing
 

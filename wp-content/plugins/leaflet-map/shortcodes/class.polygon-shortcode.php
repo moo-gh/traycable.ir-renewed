@@ -4,8 +4,6 @@
  *
  * Use with [leaflet-polygon ...]
  * 
- * PHP Version 5.5
- * 
  * @category Shortcode
  * @author   Benjamin J DeLong <ben@bozdoz.com>
  */
@@ -27,5 +25,5 @@ class Leaflet_Polygon_Shortcode extends Leaflet_Line_Shortcode
      * 
      * @var string $type 
      */
-    public static $type = 'polygon';
+    protected $type = 'polygon';
 }

@@ -3,7 +3,7 @@ services:
     image: wordpress:php7.4-apache
     container_name: traycable_app
     volumes:
-      - .:/var/www/html
+      - /var/www/traycable.ir:/var/www/html
     env_file:
       - .env
     ports:

@@ -2,8 +2,6 @@
 /**
  * Leaflet Map Class File
  * 
- * PHP Version 5.5
- * 
  * @category Admin
  * @author   Benjamin J DeLong <ben@bozdoz.com>
  */
@@ -24,7 +22,7 @@ class Leaflet_Map
      * 
      * @var string major minor patch version
      */
-    public static $leaflet_version = '1.6.0';
+    public static $leaflet_version = '1.9.4';
 
     /**
      * Files to include upon init
@@ -48,6 +46,10 @@ class Leaflet_Map
             'file' => 'class.gpx-shortcode.php',
             'class' => 'Leaflet_Gpx_Shortcode'
         ),
+        'leaflet-wms' => array(
+            'file' => 'class.wms-shortcode.php',
+            'class' => 'Leaflet_Wms_Shortcode'
+        ),
         'leaflet-line' => array(
             'file' => 'class.line-shortcode.php',
             'class' => 'Leaflet_Line_Shortcode'
@@ -67,7 +69,19 @@ class Leaflet_Map
         'leaflet-marker' => array(
             'file' => 'class.marker-shortcode.php',
             'class' => 'Leaflet_Marker_Shortcode'
-        )
+        ),
+        'leaflet-scale' => array(
+            'file' => 'class.scale-shortcode.php',
+            'class' => 'Leaflet_Scale_Shortcode'
+        ),
+        'leaflet-image-overlay' => array(
+            'file' => 'class.image-overlay-shortcode.php',
+            'class' => 'Leaflet_Image_Overlay_Shortcode'
+        ),
+        'leaflet-video-overlay' => array(
+            'file' => 'class.video-overlay-shortcode.php',
+            'class' => 'Leaflet_Video_Overlay_Shortcode'
+        ),
     );
 
     /**
@@ -227,7 +241,47 @@ class Leaflet_Map
     }
 
     /**
-     * Sanitize JSON
+     * Filter for removing empty strings from array
+     *
+     * @param array $arr
+     * 
+     * @return array with empty strings removed
+     */
+    public function filter_empty_string($arr)
+    {
+        if (!function_exists('remove_empty_string')) {
+            function remove_empty_string ($var) {
+                return $var !== "";
+            }
+        }
+
+        return array_filter($arr, 'remove_empty_string');
+    }
+
+    /**
+     * Sanitize any given validations, but concatenate with the remaining keys from $arr
+     */
+    public function sanitize_inclusive($arr, $validations) {
+        return array_merge(
+            $arr,
+            $this->sanitize_exclusive($arr, $validations)
+        );
+    }
+
+    /**
+     * Sanitize and return ONLY given validations
+     */
+    public function sanitize_exclusive($arr, $validations) {
+        // remove nulls
+        $arr = $this->filter_null($arr);
+
+        // sanitize output
+        $args = array_intersect_key($validations, $arr);
+        return filter_var_array($arr, $args);
+    }
+
+    /**
+     * Sanitize JSON 
      *
      * Takes options for filtering/correcting inputs for use in JavaScript
      *
@@ -237,14 +291,16 @@ class Leaflet_Map
      */
     public function json_sanitize($arr, $args)
     {
-        // remove nulls
-        $arr = $this->filter_null($arr);
+        $arr = $this->sanitize_exclusive($arr, $args);
 
-        // sanitize output
-        $args = array_intersect_key($args, $arr);
-        $arr = filter_var_array($arr, $args);
+        $output = json_encode($arr);
 
-        return json_encode($arr);
+        // always return object; not array
+        if ($output === '[]') {
+            $output = '{}';
+        }
+
+        return $output;
     }
 
     /**
@@ -259,7 +315,7 @@ class Leaflet_Map
     public function get_style_json($atts)
     {
         if ($atts) {
-            extract($atts);
+            extract($atts, EXTR_SKIP);
         }
 
         // from http://leafletjs.com/reference-1.0.3.html#path
@@ -282,18 +338,18 @@ class Leaflet_Map
 
         $args = array(
             'stroke' => FILTER_VALIDATE_BOOLEAN,
-            'color' => FILTER_SANITIZE_STRING,
+            'color' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
             'weight' => FILTER_VALIDATE_FLOAT,
             'opacity' => FILTER_VALIDATE_FLOAT,
-            'lineCap' => FILTER_SANITIZE_STRING,
-            'lineJoin' => FILTER_SANITIZE_STRING,
-            'dashArray' => FILTER_SANITIZE_STRING,
-            'dashOffset' => FILTER_SANITIZE_STRING,
+            'lineCap' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+            'lineJoin' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+            'dashArray' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+            'dashOffset' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
             'fill' => FILTER_VALIDATE_BOOLEAN,
-            'fillColor' => FILTER_SANITIZE_STRING,
+            'fillColor' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
             'fillOpacity' => FILTER_VALIDATE_FLOAT,
-            'fillRule' => FILTER_SANITIZE_STRING,
-            'className' => FILTER_SANITIZE_STRING,
+            'fillRule' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
+            'className' => FILTER_SANITIZE_FULL_SPECIAL_CHARS,
             'radius' => FILTER_VALIDATE_FLOAT
             );
 
@@ -314,25 +370,47 @@ class Leaflet_Map
     public function add_popup_to_shape($atts, $content, $shape)
     {
         if (!empty($atts)) {
-            extract($atts);
+            // don't overwrite existing variables
+            extract($atts, EXTR_SKIP);
         }
 
         $message = empty($message) ? 
             (empty($content) ? '' : $content) : $message;
+
+        if (empty($message)) {
+            return;
+        }
+        
+        // save variable for filter
+        $original = $message;
+        
+        // execute shortcodes if present:
+        // e.g. [leaflet-marker][some-shortcode][/leaflet-marker]
+        $message = do_shortcode($message);
+
+        // save variable for filter
+        $shortcoded = $message;
+
         $message = str_replace(array("\r\n", "\n", "\r"), '<br>', $message);
-        $message = addslashes($message);
-        $message = htmlspecialchars($message);
+        $message = wp_kses_post( $message );
+        $message = esc_html( $message );
+
+        $message = "window.WPLeafletMapPlugin.unescape('{$message}')";
+
+        // use with: add_filter('leaflet_map_popup_message', 'example_callback', 10, 3);
+        // function takes default message, message after do_shortcode, and original/raw
+        $message = apply_filters('leaflet_map_popup_message', $message, $shortcoded, $original);
+
+        echo "{$shape}.bindPopup({$message})";
+        
         $visible = empty($visible) 
             ? false 
             : filter_var($visible, FILTER_VALIDATE_BOOLEAN);
-
-        if (!empty($message)) {
-            echo "{$shape}.bindPopup(window.WPLeafletMapPlugin.unescape('{$message}'))";
-            if ($visible) {
-                echo ".openPopup()";
-            }
-            echo ";";
+        
+        if ($visible) {
+            echo ".openPopup()";
         }
+        echo ";";
     }
 
     /**
@@ -342,5 +420,112 @@ class Leaflet_Map
     public static function settings () {
         include_once LEAFLET_MAP__PLUGIN_DIR . 'class.plugin-settings.php';
         return Leaflet_Map_Plugin_Settings::init();
+    }
+
+    /**
+     * Parses liquid tags from a string
+     * 
+     * @param string $str
+     * 
+     * @return array|null
+     */
+    public function liquid ($str) {
+        if (!is_string($str)) {
+            return null;
+        }
+        $templateRegex = "/\{ *(.*?) *\}/";
+        preg_match_all($templateRegex, $str, $matches);
+               
+        if (!$matches[1]) {
+            return null;
+        }
+        
+        $str = $matches[1][0];
+
+        $tags = explode(' | ', $str);
+
+        $original = array_shift($tags);
+
+        if (!$tags) {
+            return null;
+        }
+
+        $output = array();
+
+        foreach ($tags as $tag) {
+            $tagParts = explode(': ', $tag);
+            $tagName = array_shift($tagParts);
+            $tagValue = implode(': ', $tagParts) || true;
+
+            $output[$tagName] = $tagValue;
+        }
+
+        // preserve the original
+        $output['original'] = $original;
+
+        return $output;
+    }
+
+    /**
+     * Renders a json-like string, removing quotes for values
+     * 
+     * allows JavaScript variables to be added directly 
+     * 
+     * @return string
+     */
+    public function rawDict ($arr) {
+        $obj = '{';
+        
+        foreach ($arr as $key=>$val) {
+            // removes any JS function calls
+            $safe_val = preg_replace('/[^a-zA-Z0-9_$.!]/', '', $val);
+            $obj .= "\"$key\": $safe_val,";
+        }
+
+        $obj .= '}';
+
+        return $obj;
+    }
+
+    /**
+     * Filter all floats to remove commas, force decimals, and validate float
+     * see: https://wordpress.org/support/topic/all-maps-are-gone/page/3/#post-14625548
+     */
+    public function filter_float ($flt) {
+        // make sure the value actually is a float
+        $out = filter_var($flt, FILTER_VALIDATE_FLOAT);
+        
+        // some locales seem to force commas
+        $out = str_replace(',', '.', $out);
+        
+        return $out;
+    }
+
+    /**
+     * Bounds are given as "50, -114; 52, -112"
+     * Converted to 2d-array: [[50, -114], [52, -112]]
+     */
+    public function convert_bounds_str_to_arr ($bounds) {
+        if (isset($bounds)) {
+            try {
+                // explode by semi-colons and commas
+                $arr = preg_split("[;|,]", $bounds);
+
+                return array(
+                    array(
+                        $this->filter_float($arr[0]), 
+                        $this->filter_float($arr[1])
+                    ),
+                    array(
+                        $this->filter_float($arr[2]), 
+                        $this->filter_float($arr[3])
+                    )
+                );
+            } catch (Exception $e) {
+                return null;
+            }
+        }
+
+        return null;
     }
 }
