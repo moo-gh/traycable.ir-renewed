@@ -130,9 +130,9 @@ class Leaflet_Map_Shortcode extends Leaflet_Shortcode
             'trackResize' => isset($trackresize) ? $trackresize : null,
             'boxZoom' => isset($boxzoom) 
                 ? $boxzoom 
-                : isset($boxZoom)
+                : (isset($boxZoom)
                     ? $boxZoom
-                    : null,
+                    : null),
             'touchZoom' => isset($touchZoom) ? $touchZoom : null,
             'dragging' => isset($dragging) ? $dragging : null,
             'keyboard' => isset($keyboard) ? $keyboard : null,
