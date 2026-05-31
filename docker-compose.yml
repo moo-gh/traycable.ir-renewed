@@ -19,7 +19,7 @@ services:
     env_file:
       - .env
     volumes:
-      - ./traycable_db_volume/:/var/lib/mysql
+      - /var/www/traycable.ir/traycable_db_volume/:/var/lib/mysql
     restart: unless-stopped
     networks:
       - traycable
