@@ -18,3 +18,21 @@ docker exec traycable_mysql mysqldump \
 tar -czf ~/backups/traycable-$(date +%F)/wordpress-files.tar.gz \
   -C /var/www/traycable.ir .
 ```
+
+#### For checking versions
+
+Run on the server from `/var/www/traycable.ir`:
+
+```bash
+grep wp_version /var/www/traycable.ir/wp-includes/version.php
+grep "Version:" /var/www/traycable.ir/wp-content/themes/karauos/style.css | head -1
+grep "Version:" /var/www/traycable.ir/wp-content/plugins/elementor/elementor.php
+grep "Version:" /var/www/traycable.ir/wp-content/plugins/elementor-pro/elementor-pro.php
+```
+
+Check PHP and ionCube inside the container:
+
+```bash
+docker exec traycable_app php -v
+docker exec traycable_app php -v | grep -i ioncube
+```
